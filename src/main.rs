@@ -5,7 +5,6 @@ mod chiaki;
 
 mod audio;
 mod console;
-mod governor;
 mod library;
 mod pad;
 mod play;

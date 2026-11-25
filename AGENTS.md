@@ -16,8 +16,7 @@ protocol.
 - `src/audio.rs`: the thread that owns the output device, and its queue
 - `src/console.rs`: a console, its registration file and the store of them
 - `src/psn.rs`: the PSN sign-in link and the account id lookups
-- `src/settings.rs`, `src/governor.rs`, `src/status.rs`: the settings file,
-  the render scale governor and the status row
+- `src/settings.rs`, `src/status.rs`: the settings file and the status row
 - `src/chiaki/`: libchiaki behind Rust types: errors, the log, discovery,
   registration, the session and the video and audio decoders
 - `chiaki/`: the CMake scope that builds libchiaki from the chiaki-ng

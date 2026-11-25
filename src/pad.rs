@@ -166,24 +166,6 @@ fn home_chord(buttons: u32) -> u32 {
     }
 }
 
-/// The keys the menus read, from the buttons the game controllers pressed
-/// since `before`.
-pub(crate) fn menu_keys(before: &[Gamepad], now: &[Gamepad]) -> Vec<Key> {
-    const MENU: [(PadButton, Key); 6] = [
-        (PadButton::Up, Key::Up),
-        (PadButton::Down, Key::Down),
-        (PadButton::Left, Key::Left),
-        (PadButton::Right, Key::Right),
-        (PadButton::South, Key::Enter),
-        (PadButton::East, Key::Escape),
-    ];
-    let held = |pads: &[Gamepad], button| pads.iter().any(|pad| pad.pressed(button));
-    MENU.iter()
-        .filter(|(button, _)| held(now, *button) && !held(before, *button))
-        .map(|(_, key)| *key)
-        .collect()
-}
-
 fn control(key: Key, mods: Mods) -> Option<Control> {
     if mods.ctrl || mods.alt {
         return None;
@@ -214,7 +196,7 @@ mod tests {
     use katui::rt::gamepad::Pad as Gamepad;
     use katui::rt::gamepad::PadButton;
 
-    use super::{from_gamepads, from_keys, menu_keys};
+    use super::{from_gamepads, from_keys};
     use crate::chiaki::session::{FULL, Pad, button};
 
     const NONE: Mods = Mods::NONE;
@@ -327,17 +309,5 @@ mod tests {
             from_gamepads(&[gamepad(PadButton::Select, 0.0, 0.0)]).buttons,
             button::SHARE
         );
-    }
-
-    #[test]
-    fn a_menu_sees_each_press_once() {
-        let down = [gamepad(PadButton::Down, 0.0, 0.0)];
-        let cross = [gamepad(PadButton::South, 0.0, 0.0)];
-        assert_eq!(menu_keys(&[], &down), [Key::Down]);
-        assert!(
-            menu_keys(&down, &down).is_empty(),
-            "a held button repeats nothing"
-        );
-        assert_eq!(menu_keys(&down, &cross), [Key::Enter]);
     }
 }

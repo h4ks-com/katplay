@@ -4,6 +4,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use katui::game::HeldKeys;
 use katui::proto::input::{Key, Mods};
 use katui::rt::events::Waker;
 use katui::rt::gamepad::Pad as Gamepad;
@@ -25,9 +26,6 @@ const WAKE_TIMEOUT: Duration = Duration::from_secs(90);
 /// How often the controller may be sent, so a burst of keys still ends with
 /// the newest state on its way.
 const SEND_EVERY: Duration = Duration::from_millis(4);
-/// How long a key counts as held when the terminal does not report releases;
-/// its repeats keep a held key alive.
-const HELD_WITHOUT_RELEASE: Duration = Duration::from_millis(250);
 /// How long the console gets to rest before the session is dropped anyway.
 const REST_WAIT: Duration = Duration::from_secs(3);
 
@@ -48,12 +46,6 @@ pub(crate) enum Report {
     },
     /// The session ended, and why.
     Ended(String),
-}
-
-struct Held {
-    key: Key,
-    mods: Mods,
-    since: Instant,
 }
 
 /// The waker behind "a picture is waiting", shared by two closures.
@@ -87,11 +79,10 @@ pub(crate) struct Play {
     shown: u32,
     counted: u32,
     counted_since: Instant,
-    held: Vec<Held>,
+    held: HeldKeys,
     gamepads: Vec<Gamepad>,
     sent: Pad,
     sent_at: Option<Instant>,
-    releases_seen: bool,
     faults: Arc<Mutex<Vec<String>>>,
 }
 
@@ -132,11 +123,10 @@ impl Play {
             shown: 0,
             counted: 0,
             counted_since: Instant::now(),
-            held: Vec::new(),
+            held: HeldKeys::default(),
             gamepads: Vec::new(),
             sent: Pad::default(),
             sent_at: None,
-            releases_seen: false,
             faults,
         };
         if console.is_some_and(|console| console.state == State::Standby) {
@@ -246,17 +236,10 @@ impl Play {
 
     /// A key went down (`down`) or came up for the controller.
     pub(crate) fn key(&mut self, key: Key, mods: Mods, down: bool, now: Instant) {
-        // A terminal reports the modifiers held at release time, so Shift let go before an arrow
-        // would leave the arrow held if we matched on both.
-        self.held.retain(|held| held.key != key);
         if down {
-            self.held.push(Held {
-                key,
-                mods,
-                since: now,
-            });
+            self.held.press_with(key, mods, now);
         } else {
-            self.releases_seen = true;
+            self.held.release(key);
         }
     }
 
@@ -275,12 +258,8 @@ impl Play {
         let Some(session) = self.session.as_mut() else {
             return;
         };
-        if !self.releases_seen {
-            self.held
-                .retain(|held| now.duration_since(held.since) < HELD_WITHOUT_RELEASE);
-        }
-        let pad = from_keys(self.held.iter().map(|held| (held.key, held.mods)))
-            .merge(from_gamepads(&self.gamepads));
+        self.held.tick(now);
+        let pad = from_keys(self.held.held()).merge(from_gamepads(&self.gamepads));
         if pad == self.sent || self.sent_at.is_some_and(|at| at.elapsed() < SEND_EVERY) {
             return;
         }

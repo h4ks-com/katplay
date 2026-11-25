@@ -8,19 +8,21 @@ use std::time::{Duration, Instant};
 
 use katui::draw::{TextEngine, bundled_fonts};
 use katui::present::session;
-use katui::present::surface::{PatchedKitty, PixelScreen};
-use katui::proto::input::{Button, InputEvent, Key, Mods, MouseAction, Pointer};
+use katui::present::surface::PixelScreen;
+use katui::proto::input::{InputEvent, Key, Mods, MouseEvent, Pointer};
 use katui::proto::probe::{Capabilities, CellPixels};
 use katui::rt::app::{App, AppEvent, Control, Delivery};
 use katui::rt::events::Waker;
 use katui::rt::gamepad::{self, Pad as Gamepad};
-use katui::rt::stash::local_stash;
+use katui::rt::open_link;
 use katui::rt::tty::cell_size;
+use katui::rt::video::{self, ScaleGovernor};
 use katui::scene::CellSize;
 use katui::scene::placement::CellRect;
 use katui::ui::{Align, Element, Ui, UiOptions};
 use katui::widgets::{
-    Focus, TextField, Theme, button, hint, label, page, panel, primary_button, text_field, title,
+    Focus, TextField, Theme, button, focusable_button, hint, label, page, panel, primary_button,
+    text_field, title,
 };
 
 use crate::chiaki::Log;
@@ -28,9 +30,7 @@ use crate::chiaki::discovery::Discovery;
 use crate::chiaki::registration::{Outcome, Registration as Pairing};
 use crate::chiaki::session::Event;
 use crate::console::{Console, Kind, Registration, Store};
-use crate::governor::Governor;
 use crate::library::{self, Library, Row};
-use crate::pad;
 use crate::play::{Play, Report, Stage};
 use crate::psn;
 use crate::register::{Account, By, Field, Register};
@@ -40,11 +40,7 @@ use crate::{Error, io_error};
 
 /// The first image id the pixel presenter hands out.
 const BASE_IMAGE: u32 = 1_000;
-/// The picture a terminal is asked to take per frame at most, the size the
-/// katui video player settles on.
-const MOST_PIXELS: (u32, u32) = (960, 540);
-/// The render scale the governor picks from; it halves under a multiplexer,
-/// which carries every byte inline.
+/// The render scale the governor picks from.
 const SCALE_RANGE: (f64, f64) = (0.25, 1.0);
 pub(crate) const FRAMES_PER_SECOND: u32 = 60;
 
@@ -138,7 +134,7 @@ pub(crate) struct Shell {
     /// The controllers as the last snapshot left them, so a menu sees each press once.
     held_pads: Vec<Gamepad>,
     waker: Option<Waker<Message>>,
-    governor: Governor,
+    governor: ScaleGovernor,
     /// The size the session's pictures are scaled to, as the terminal last sized them.
     frame: (u32, u32),
     size: CellSize,
@@ -163,23 +159,7 @@ impl Shell {
         let engine = TextEngine::new(bundled_fonts()).map_err(|source| {
             io_error(&store.root().join("katui fonts"), io::Error::other(source))
         })?;
-        let presenter = if caps.kitty {
-            let mut presenter = PatchedKitty::with_tiles(BASE_IMAGE, cell, 64, 0);
-            if let Some(stash) = local_stash(&caps) {
-                presenter = presenter.with_stash(stash);
-            }
-            PixelScreen::new(&caps, cell, presenter)
-        } else {
-            PixelScreen::picture(&caps, cell)
-        };
-        let halve = |scale: f64| {
-            if caps.multiplexed() {
-                scale / 2.0
-            } else {
-                scale
-            }
-        };
-        let (min, max) = (halve(SCALE_RANGE.0), halve(SCALE_RANGE.1));
+        let presenter = video::screen(&caps, cell, BASE_IMAGE);
         let mut library = Library::default();
         library.resize(library::rows(&registrations, &[]).len());
         let pointer = Pointer::new(caps.cell, cell);
@@ -200,7 +180,11 @@ impl Shell {
             gamepads: Arc::default(),
             held_pads: Vec::new(),
             waker: None,
-            governor: Governor::new(Duration::from_secs(1) / FRAMES_PER_SECOND, min, max),
+            governor: ScaleGovernor::new(
+                Duration::from_secs(1) / FRAMES_PER_SECOND,
+                SCALE_RANGE.0,
+                SCALE_RANGE.1,
+            ),
             frame: (0, 0),
             size: CellSize {
                 columns: 0,
@@ -282,12 +266,12 @@ impl Shell {
     /// The size the session's pictures are scaled to.
     fn frame_size(&self) -> (u32, u32) {
         let area = video_area(self.size, self.cell);
-        frame_size(
+        video::frame_size(
             (
                 u32::from(area.columns) * u32::from(self.cell.width),
                 u32::from(area.rows) * u32::from(self.cell.height),
             ),
-            self.caps.multiplexed(),
+            &self.caps,
             self.governor.scale(),
         )
     }
@@ -352,7 +336,15 @@ impl Shell {
                     form.look_by(by);
                 }
             }
-            Action::OpenSignIn => open_link(&psn::sign_in_url()),
+            Action::OpenSignIn => {
+                if let (Err(error), Screen::Register(form)) =
+                    (open_link(&psn::sign_in_url()), &mut self.screen)
+                {
+                    form.failed(format!(
+                        "Open the PSN sign-in in a browser yourself: {error}"
+                    ));
+                }
+            }
             Action::LookUp => self.look_up(),
             Action::Link => self.link(),
             _ => {}
@@ -672,22 +664,10 @@ impl Shell {
     }
 
     /// A mouse event on a widget; what the widget asks for.
-    fn click(&mut self, mouse: &katui::proto::input::MouseEvent) -> Control {
+    fn click(&mut self, mouse: &MouseEvent) -> Control {
         let cell = self.cell;
         let (x, y) = self.pointer.locate(mouse, cell);
-        if let MouseAction::Release(_) = mouse.action {
-            self.ui.release();
-            return Control::Wait;
-        }
-        let asked = match mouse.action {
-            MouseAction::Press(Button::Left) => self.ui.click(x, y),
-            MouseAction::Drag(Button::Left) => self.ui.drag(x, y),
-            MouseAction::WheelUp | MouseAction::WheelDown => {
-                self.ui.wheel(x, y, mouse.action == MouseAction::WheelDown)
-            }
-            _ => None,
-        };
-        match asked {
+        match self.ui.mouse(mouse.action, x, y) {
             Some(Message::Ask(action)) => self.act(action),
             _ => Control::Wait,
         }
@@ -734,7 +714,7 @@ impl Shell {
         if streaming {
             return Control::Wait;
         }
-        let keys = pad::menu_keys(&before, &self.held_pads);
+        let keys = gamepad::pressed_keys(&before, &self.held_pads, &gamepad::MENU_KEYS);
         if keys.is_empty() {
             return Control::Wait;
         }
@@ -825,13 +805,7 @@ impl Shell {
             .align(Align::Center),
             Screen::Leave { choice, .. } => {
                 let actions = self.leave_choices().into_iter().map(|(action, text)| {
-                    // katui's buttons have no focused look, so we draw the one the keys are on
-                    // as the primary button.
-                    if choice.is(action) {
-                        primary_button(text, Message::ask(action))
-                    } else {
-                        button(text, Message::ask(action))
-                    }
+                    focusable_button(text, Message::ask(action), choice.is(action))
                 });
                 page([panel([
                     title("Leave the session?"),
@@ -986,55 +960,15 @@ impl App for Shell {
     }
 }
 
-/// Open `link` in the browser of this machine.
-fn open_link(link: &str) {
-    let opener = if cfg!(target_os = "macos") {
-        "open"
-    } else {
-        "xdg-open"
-    };
-    let _child = std::process::Command::new(opener).arg(link).spawn();
-}
-
-/// The cells the picture gets: the screen below the status row, cut to the
-/// 16:9 of the console's video and centred in what is left.
+/// The 16:9 box the picture takes below the status row.
 fn video_area(size: CellSize, cell: CellPixels) -> CellRect {
-    let (wide, high) = (
-        u32::from(size.columns),
-        u32::from(size.rows.saturating_sub(ROWS)),
-    );
-    let (cell_w, cell_h) = (u32::from(cell.width).max(1), u32::from(cell.height).max(1));
-    let rows_if_full_width = wide * cell_w * 9 / (16 * cell_h);
-    let (wide, high) = if rows_if_full_width <= high {
-        (wide, rows_if_full_width)
-    } else {
-        (high * cell_h * 16 / (9 * cell_w), high)
+    let below_status = CellRect {
+        x: 0,
+        y: ROWS,
+        columns: size.columns,
+        rows: size.rows.saturating_sub(ROWS),
     };
-    let (wide, high) = (wide.max(1), high.max(1));
-    CellRect {
-        x: u16::try_from((u32::from(size.columns) - wide) / 2).unwrap_or(0),
-        y: ROWS
-            + u16::try_from((u32::from(size.rows.saturating_sub(ROWS)) - high) / 2).unwrap_or(0),
-        columns: u16::try_from(wide).unwrap_or(u16::MAX),
-        rows: u16::try_from(high).unwrap_or(u16::MAX),
-    }
-}
-
-/// The size of the picture for an area of `area` pixels: the area's shape,
-/// shrunk to what the terminal takes `FRAMES_PER_SECOND` times a second and
-/// to `scale`, with whole even sides.
-#[allow(
-    clippy::cast_sign_loss,
-    reason = "a pixel count is positive by construction"
-)]
-fn frame_size(area: (u32, u32), multiplexed: bool, scale: f64) -> (u32, u32) {
-    let shrink = f64::from(if multiplexed { 2 } else { 1 });
-    let (across, down) = (f64::from(area.0.max(1)), f64::from(area.1.max(1)));
-    let fit = (f64::from(MOST_PIXELS.0) / shrink / across)
-        .min(f64::from(MOST_PIXELS.1) / shrink / down)
-        .min(1.0);
-    let side = |pixels: f64| ((pixels * fit * scale).round() as u32).max(2) & !1;
-    (side(across), side(down))
+    video::fit(below_status, cell, (16, 9))
 }
 
 #[cfg(test)]
@@ -1045,7 +979,7 @@ mod tests {
     use katui::scene::CellSize;
     use katui::widgets::TextField;
 
-    use super::{Action, Screen, Shell, frame_size, video_area};
+    use super::{Action, Screen, Shell, video_area};
     use crate::chiaki::registration::Outcome;
     use crate::console::{Console, Kind, Registration, State, Store};
     use crate::library;
@@ -1174,11 +1108,6 @@ mod tests {
             (34, ROWS, 32, 9),
             "a short screen narrows the picture to its height"
         );
-        assert_eq!(frame_size((1000, 560), false, 1.0), (960, 538));
-        assert_eq!(frame_size((1000, 560), true, 1.0), (480, 268));
-        let (wide, high) = frame_size((800, 450), false, 0.5);
-        assert_eq!((wide, high), (400, 224));
-        assert_eq!(frame_size((0, 0), false, 1.0), (2, 2));
     }
 
     #[test]
