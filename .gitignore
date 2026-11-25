@@ -1,0 +1,8 @@
+/target
+.DS_Store
+.claude/
+.opencode/
+opencode.json
+research/
+/.cargo/
+CLAUDE.md

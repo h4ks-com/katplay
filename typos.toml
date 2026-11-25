@@ -1,0 +1,10 @@
+[default.extend-words]
+katui = "katui"
+katplay = "katplay"
+chiaki = "chiaki"
+regist = "regist"
+Regist = "Regist"
+REGIST = "REGIST"
+
+[files]
+extend-exclude = ["Cargo.lock", "LICENSE"]
