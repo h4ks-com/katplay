@@ -1,24 +1,43 @@
-# katplay
+<h1 align="center">katplay</h1>
 
-katplay is PlayStation Remote Play for the terminal, built on
-[chiaki-ng](https://github.com/chiaki-ng/chiaki-ng) and
-[katui](https://github.com/h4ks-com/katui). chiaki-ng speaks to the console,
-and katui draws the picture as real pixels in kitty, Ghostty, WezTerm and
-iTerm2, as sixel in terminals that have it, and as colored blocks everywhere
-else.
+<p align="center">
+katplay is a PlayStation Remote Play client that streams your PS5 or PS4 into a terminal window.
+</p>
 
-## Build
+<p align="center">
+<a href="#install">Install</a> · <a href="#first-use">First use</a> · <a href="#controls">Controls</a> · <a href="#status">Status</a>
+</p>
 
-You need Rust 1.90 or newer, and `just`, `uv`, CMake, Ninja and Git on your
-`PATH`.
+katplay finds the consoles on your network, wakes them from rest and plays
+them with sound, using your keyboard or a game controller. The picture is real
+pixels in kitty, Ghostty, WezTerm and iTerm2, sixel in terminals that support
+it, and colored blocks everywhere else.
+[chiaki-ng](https://github.com/chiaki-ng/chiaki-ng)'s libchiaki handles the
+connection, video and audio, and [katui](https://github.com/h4ks-com/katui)
+draws the picture.
 
-The libraries libchiaki links come from your package manager. On macOS:
+```console
+$ just run discover 3        # list the consoles that answer within 3 seconds
+192.168.1.20     PS5-123                  PS5  ready
+192.168.1.21     PS4-Den                  PS4  in rest
+```
+
+## Install
+
+katplay runs on macOS and Linux and builds from source. You need Rust 1.90 or
+newer, which [rustup](https://rustup.rs) installs, and
+[just](https://github.com/casey/just), the command runner the build steps live
+in.
+
+On macOS, install Xcode's command line tools with `xcode-select --install`,
+then the build tools and the libraries katplay links with Homebrew:
 
 ```sh
 brew install just uv cmake ninja git openssl@3 json-c miniupnpc libevent opus ffmpeg protobuf
 ```
 
-On Debian and Ubuntu:
+<details>
+<summary><b>Debian and Ubuntu</b></summary>
 
 ```sh
 sudo apt install just cmake ninja-build git pkg-config libclang-dev clang \
@@ -26,57 +45,82 @@ sudo apt install just cmake ninja-build git pkg-config libclang-dev clang \
   libavcodec-dev libavutil-dev libswscale-dev libasound2-dev protobuf-compiler
 ```
 
-Then, in a clone of this repository:
+Then install [uv](https://docs.astral.sh/uv/getting-started/installation/)
+with its installer. On a release that has no `just` package, run
+`cargo install just`.
+
+</details>
+
+Then clone this repository and run this inside it:
 
 ```sh
 just run
 ```
 
-The first run clones chiaki-ng into `~/.local/share/katplay` and builds its
-protocol library, which takes a few minutes.
+The first run downloads chiaki-ng into `~/.local/share/katplay` and builds
+libchiaki from it, which takes a few minutes. Later runs start right away.
 
-## Use
+## First use
 
-`just run` lists the consoles on your network. Pick one with the arrow keys
-and press <kbd>Enter</kbd> to play it. A console you have not paired yet opens
-the registration form: on the console open Settings, Remote Play, Link
-Device, and type the address and the code it shows. Press <kbd>r</kbd> to
-register, <kbd>w</kbd> to wake a console in rest mode, <kbd>x</kbd> to forget
-one, and <kbd>Tab</kbd> to change the quality.
+`just run` opens the list of consoles on your network. Pick one with the arrow
+keys and press <kbd>Enter</kbd>.
+
+Picking a console you have not paired yet opens the registration form. On the
+console, open Settings, then Remote Play, then Link Device, and type the
+address and the 8-digit code it shows. Then name the PSN account to register in
+one of two ways: type the account's public online id, or sign in to PSN in a
+browser and paste the address of the page the sign-in ends on. The console
+keeps the pairing, so you register each console once.
+
+In the list, press <kbd>w</kbd> to wake a console from rest, <kbd>x</kbd> to
+forget one, and <kbd>Tab</kbd> to change the video quality. A console in rest
+mode also wakes on its own when you start playing it.
+
+## Controls
 
 While you play, the keyboard is the controller:
 
 | Keys | Controller |
 | --- | --- |
-| <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> | left stick |
+| `w` `a` `s` `d` | left stick |
 | arrow keys | right stick |
-| <kbd>Shift</kbd> + arrow keys | direction pad |
-| <kbd>I</kbd> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> | triangle, square, cross, circle |
-| <kbd>E</kbd> <kbd>U</kbd> | L1, R1 |
-| <kbd>R</kbd> <kbd>O</kbd> | L2, R2 |
-| <kbd>C</kbd> <kbd>N</kbd> | L3, R3 |
-| <kbd>V</kbd> <kbd>B</kbd> <kbd>P</kbd> <kbd>M</kbd> | share, options, PS, touchpad |
+| `Shift` + arrow keys | D-pad |
+| `i` `j` `k` `l` | triangle, square, cross, circle, laid out as on the pad |
+| `e` `u` | L1, R1 |
+| `r` `o` | L2, R2 |
+| `c` `n` | L3, R3 |
+| `v` `b` `p` `m` | Share, Options, PS, touchpad |
 
-A game controller works too. In the menus the direction pad moves, the
-bottom face button picks and the right one goes back. Most systems keep a
-controller's PS button for themselves, so hold Share and Options together to
-press PS. Press <kbd>Esc</kbd> to leave the session and
-<kbd>Ctrl</kbd>+<kbd>C</kbd> to quit.
+A game controller works as well, and you can use it together with the keyboard.
+Most systems keep a controller's PS button for themselves, so hold Share and
+Options together to press PS. In the menus, you move with the D-pad or the
+left stick, pick with the bottom face button and go back with the right one.
 
-The same works from the command line:
+Press <kbd>Esc</kbd> to open the menu that leaves the session or puts the
+console to rest, and <kbd>Ctrl</kbd>+<kbd>C</kbd> to quit.
+
+## From the command line
+
+Each of these does one job on its own, for scripts and shortcuts. A
+`<console>` is the name or the address that `discover` prints.
 
 ```sh
-just run discover 5
-just run wake <console>
-just run play <console>
-just run register --host <address> --pin <code> --username <online id>
+just run discover 5          # list the consoles that answer within 5 seconds
+just run wake <console>      # wake a registered console from rest
+just run play <console>      # start playing a console right away
+just run register --host <address> --pin <code> --username <online id>   # pair a console
 ```
+
+`register` also takes `--link <url>` (the sign-in page address) or
+`--account-id <id>` (the account id in base64) in place of `--username`,
+`--name <name>` to name the console, and `--ps4` for a PS4.
 
 ## Status
 
-katplay is early. Discovery works. Playing a session is written and untested
-against a console.
+katplay is early. Finding consoles is tested on a real PS5. Waking,
+registering and playing are built and not yet tested against a console, so
+expect rough edges there.
 
 ## License
 
-AGPL-3.0-only. katplay links libchiaki, which is AGPL-3.0-only too.
+AGPL-3.0-only, because katplay links libchiaki, which is AGPL-3.0-only too.
