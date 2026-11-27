@@ -805,7 +805,6 @@ dependencies = [
  "cpal",
  "katui",
  "libc",
- "pkg-config",
  "serde",
  "serde_json",
  "thiserror 2.0.21",

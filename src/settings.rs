@@ -149,16 +149,10 @@ impl Settings {
         self.quality.video(self.encoding.codec())
     }
 
-    /// The hardware decoder to ask for, by the name `FFmpeg` gives it.
+    /// The hardware decoder to ask for, by the name `FFmpeg` gives it; the `FFmpeg` katplay
+    /// links carries only `VideoToolbox`.
     pub(crate) fn hardware_decoder(self) -> Option<&'static str> {
-        if self.decode == Decode::Software {
-            return None;
-        }
-        Some(if cfg!(target_os = "macos") {
-            "videotoolbox"
-        } else {
-            "vaapi"
-        })
+        (self.decode != Decode::Software && cfg!(target_os = "macos")).then_some("videotoolbox")
     }
 }
 

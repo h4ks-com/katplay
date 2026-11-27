@@ -34,16 +34,16 @@ On macOS, first install Xcode's command line tools with
 Homebrew:
 
 ```sh
-brew install just uv cmake ninja git openssl@3 json-c miniupnpc libevent opus ffmpeg protobuf
+brew install just uv cmake ninja git openssl@3 json-c miniupnpc libevent opus nasm protobuf
 ```
 
 <details>
 <summary><b>Debian and Ubuntu</b></summary>
 
 ```sh
-sudo apt install just cmake ninja-build git pkg-config libclang-dev clang \
+sudo apt install just build-essential curl xz-utils cmake ninja-build git pkg-config libclang-dev clang \
   libssl-dev libjson-c-dev libminiupnpc-dev libevent-dev libopus-dev \
-  libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libasound2-dev libudev-dev protobuf-compiler
+  nasm libasound2-dev libudev-dev protobuf-compiler
 ```
 
 Then install [uv](https://docs.astral.sh/uv/getting-started/installation/)

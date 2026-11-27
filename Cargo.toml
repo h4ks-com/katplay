@@ -1,12 +1,20 @@
 [package]
 name = "katplay"
-description = "PlayStation Remote Play in the terminal: chiaki-ng holds the session, katui draws the pixels"
+description = "PlayStation Remote Play in your terminal"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.90"
 license = "AGPL-3.0-only"
 readme = "README.md"
+repository = "https://github.com/h4ks-com/katplay"
 keywords = ["terminal", "playstation", "remote-play", "kitty-graphics"]
+publish = false
+
+# cargo binstall downloads the archive the release workflow attaches
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }.tar.gz"
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
 
 [dependencies]
 base64 = "0.22"
@@ -22,7 +30,6 @@ ureq = { version = "3", features = ["json"] }
 [build-dependencies]
 bindgen = "0.72"
 cmake = "0.1"
-pkg-config = "0.3"
 
 [lints.rust]
 unsafe_code = "deny"

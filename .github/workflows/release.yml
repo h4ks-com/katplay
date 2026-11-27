@@ -1,0 +1,78 @@
+name: Release
+on:
+  push:
+    tags: ["v*"]
+  # builds the archives without publishing them, to try a release before tagging it
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # one self-contained binary archive per platform, once the tag names the crate version
+  binaries:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu }
+          - { os: ubuntu-22.04-arm, target: aarch64-unknown-linux-gnu }
+          - { os: macos-latest, target: aarch64-apple-darwin }
+          - { os: macos-15-intel, target: x86_64-apple-darwin }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: astral-sh/setup-uv@v7
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends
+          cmake ninja-build git pkg-config libclang-dev clang
+          libssl-dev libjson-c-dev libminiupnpc-dev libevent-dev libopus-dev
+          nasm libasound2-dev libudev-dev protobuf-compiler
+      - if: runner.os == 'macOS'
+        run: brew install cmake ninja git miniupnpc libevent opus json-c nasm protobuf openssl@3
+      - uses: actions/cache@v5
+        with:
+          path: ~/.local/share/katplay
+          key: release-${{ matrix.target }}-${{ hashFiles('justfile') }}
+      - if: github.ref_type == 'tag'
+        run: just release-check "$TAG"
+        env:
+          TAG: ${{ github.ref_name }}
+      - run: just package "$TARGET"
+        env:
+          TARGET: ${{ matrix.target }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: katplay-${{ matrix.target }}
+          path: katplay-*.tar.gz
+
+  github:
+    if: github.ref_type == 'tag'
+    needs: binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: katplay-*
+          merge-multiple: true
+          path: dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.tar.gz

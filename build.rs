@@ -12,7 +12,12 @@ type Result<T> = std::result::Result<T, Box<dyn Error>>;
 const PROBE: &str = "katplay_chiaki_probe";
 
 fn main() -> Result<()> {
-    for variable in ["CHIAKI_PATH", "CHIAKI_PYTHON", "CHIAKI_OPENSSL"] {
+    for variable in [
+        "CHIAKI_PATH",
+        "CHIAKI_PYTHON",
+        "CHIAKI_OPENSSL",
+        "FFMPEG_PREFIX",
+    ] {
         println!("cargo::rerun-if-env-changed={variable}");
     }
     // bindgen names only the headers it read, which turns off cargo's rerun on any change, so we
@@ -22,13 +27,15 @@ fn main() -> Result<()> {
     let hint = "is unset: run `just chiaki` first";
     let source = PathBuf::from(env::var_os("CHIAKI_PATH").ok_or(format!("CHIAKI_PATH {hint}"))?);
     let python = env::var_os("CHIAKI_PYTHON").ok_or(format!("CHIAKI_PYTHON {hint}"))?;
+    let ffmpeg = env::var_os("FFMPEG_PREFIX").ok_or(format!("FFMPEG_PREFIX {hint}"))?;
 
     let mut cmake = cmake::Config::new("chiaki");
     cmake
         .generator("Ninja")
         .profile("Release")
         .define("CHIAKI_PATH", &source)
-        .define("PYTHON_EXECUTABLE", python);
+        .define("PYTHON_EXECUTABLE", python)
+        .define("FFMPEG_PREFIX", &ffmpeg);
     if let Some(openssl) = env::var_os("CHIAKI_OPENSSL").filter(|value| !value.is_empty()) {
         cmake.define("OPENSSL_ROOT_DIR", openssl);
     }
@@ -38,23 +45,22 @@ fn main() -> Result<()> {
         .ok_or("build.ninja sits in no directory")?
         .to_path_buf();
 
-    bind(&source, &build, &out)?;
+    bind(&source, Path::new(&ffmpeg), &build, &out)?;
     link(&build)
 }
 
-fn bind(source: &Path, build: &Path, out: &Path) -> Result<()> {
+fn bind(source: &Path, ffmpeg: &Path, build: &Path, out: &Path) -> Result<()> {
     let config = find(build, "include/chiaki/config.h")?;
     let include = config
         .parent()
         .and_then(Path::parent)
         .ok_or("chiaki's config.h sits in no include directory")?;
-    let headers = pkg_config::Config::new().probe("libavcodec")?.include_paths;
-    pkg_config::Config::new().probe("libswscale")?;
 
-    let mut bindgen = bindgen::Builder::default()
+    bindgen::Builder::default()
         .header("chiaki/bindings.h")
         .clang_arg(format!("-I{}", source.join("lib/include").display()))
         .clang_arg(format!("-I{}", include.display()))
+        .clang_arg(format!("-I{}", ffmpeg.join("include").display()))
         .clang_arg(format!(
             "-I{}",
             source.join("third-party/curl/include").display()
@@ -71,11 +77,7 @@ fn bind(source: &Path, build: &Path, out: &Path) -> Result<()> {
         .allowlist_function(
             "^av_frame_(alloc|free|unref)$|^av_hwframe_transfer_data$|^sws_(getContext|scale|freeContext)$",
         )
-        .allowlist_var(r"^AV_PIX_FMT_\w+$|^SWS_BILINEAR$");
-    for path in headers {
-        bindgen = bindgen.clang_arg(format!("-I{}", path.display()));
-    }
-    bindgen
+        .allowlist_var(r"^AV_PIX_FMT_\w+$|^SWS_BILINEAR$")
         .generate()
         .map_err(|_| io::Error::other("bindgen could not read chiaki's headers"))?
         .write_to_file(out.join("chiaki.rs"))?;
@@ -152,6 +154,8 @@ fn classify(build: &Path, token: &str) -> Argument {
         "-fPIC",
         "--target",
         "-Wl,--dependency-file",
+        "-pthread",
+        "-Wl,-rpath",
     ]
     .iter()
     .any(|prefix| token.starts_with(prefix));
