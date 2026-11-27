@@ -49,7 +49,7 @@ chiaki: ffmpeg
     ready() {
         [ -d "$CHIAKI_PATH/.git" ] \
             && [ "$(git -C "$CHIAKI_PATH" describe --tags --exact-match HEAD 2>/dev/null)" = "$CHIAKI_REF" ] \
-            && "$CHIAKI_PYTHON" -c 'import google.protobuf' 2>/dev/null
+            && "$CHIAKI_PYTHON" -c 'import google.protobuf, grpc_tools' 2>/dev/null
     }
     if ready; then
         echo "chiaki-ng $CHIAKI_REF is in $CHIAKI_PATH"
@@ -65,7 +65,7 @@ chiaki: ffmpeg
             third-party/nanopb third-party/jerasure third-party/gf-complete third-party/curl
     fi
     uv venv --clear --quiet "$CHIAKI_VENV"
-    uv pip install --python "$CHIAKI_PYTHON" --quiet protobuf
+    uv pip install --python "$CHIAKI_PYTHON" --quiet protobuf grpcio-tools
     echo "chiaki-ng $CHIAKI_REF is in $CHIAKI_PATH"
 
 # clippy with ci's denials, after every change
