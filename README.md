@@ -43,7 +43,7 @@ brew install just uv cmake ninja git openssl@3 json-c miniupnpc libevent opus ff
 ```sh
 sudo apt install just cmake ninja-build git pkg-config libclang-dev clang \
   libssl-dev libjson-c-dev libminiupnpc-dev libevent-dev libopus-dev \
-  libavcodec-dev libavutil-dev libswscale-dev libasound2-dev libudev-dev protobuf-compiler
+  libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libasound2-dev libudev-dev protobuf-compiler
 ```
 
 Then install [uv](https://docs.astral.sh/uv/getting-started/installation/)
