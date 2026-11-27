@@ -138,6 +138,12 @@ fn link(build: &Path) -> Result<()> {
             }
         }
     }
+    // GNU ld resolves libraries in order, so we name libc and libgcc again after the static
+    // archives that call into them, such as arm64's atomics helpers.
+    if env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "linux") {
+        println!("cargo::rustc-link-arg=-lgcc");
+        println!("cargo::rustc-link-arg=-lc");
+    }
     Ok(())
 }
 
