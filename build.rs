@@ -140,7 +140,7 @@ fn link(build: &Path) -> Result<()> {
 }
 
 fn classify(build: &Path, token: &str) -> Argument {
-    let compile_option = [
+    let probe_only = [
         "-mmacosx-version-min",
         "-O",
         "-D",
@@ -151,6 +151,7 @@ fn classify(build: &Path, token: &str) -> Argument {
         "-fdata-sections",
         "-fPIC",
         "--target",
+        "-Wl,--dependency-file",
     ]
     .iter()
     .any(|prefix| token.starts_with(prefix));
@@ -158,7 +159,7 @@ fn classify(build: &Path, token: &str) -> Argument {
         .extension()
         .is_some_and(|extension| extension == "o");
     match token {
-        _ if object || compile_option => Argument::Skip,
+        _ if object || probe_only => Argument::Skip,
         "-o" | "-arch" | "-isysroot" => Argument::SkipValue,
         "-framework" | "-weak_framework" | "-reexport_framework" => {
             Argument::FlagValue(token.into())
