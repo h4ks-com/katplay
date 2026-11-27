@@ -201,9 +201,7 @@ impl Session {
         let mut connect = sys::ChiakiConnectInfo {
             ps5: info.ps5,
             host: host.as_ptr(),
-            // c_char is signed on some platforms, so we let the cast wrap there.
-            #[allow(clippy::cast_possible_wrap)]
-            regist_key: info.regist_key.map(|byte| byte as c_char),
+            regist_key: info.regist_key.map(|byte| c_char::from_ne_bytes([byte])),
             morning: info.morning,
             video_profile: info.video.raw(),
             video_profile_auto_downgrade: true,

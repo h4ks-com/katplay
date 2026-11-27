@@ -155,7 +155,9 @@ unsafe fn text(pointer: *const c_char) -> Option<String> {
 unsafe fn log_line(level: sys::ChiakiLogLevel, message: *const c_char) -> String {
     // SAFETY: the caller holds the contract above, and the level only maps to a letter.
     unsafe {
-        let letter = sys::chiaki_log_level_char(level).cast_unsigned() as char;
+        let letter = char::from(u8::from_ne_bytes(
+            sys::chiaki_log_level_char(level).to_ne_bytes(),
+        ));
         format!("[{letter}] {}\n", text(message).unwrap_or_default())
     }
 }

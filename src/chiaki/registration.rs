@@ -1,7 +1,7 @@
 //! Pairing a console: the registration that stores a registration key on it,
 //! and its result.
 
-use std::ffi::{c_char, c_void};
+use std::ffi::c_void;
 use std::mem::zeroed;
 use std::ptr;
 use std::sync::Arc;
@@ -111,7 +111,9 @@ unsafe extern "C" fn finished(event: *mut sys::ChiakiRegistEvent, user: *mut c_v
                 // SAFETY: with the success event, chiaki passes the host it registered, live for the call.
                 let host = &*event.registered_host;
                 Outcome::Registered {
-                    regist_key: host.rp_regist_key.map(c_char::cast_unsigned),
+                    regist_key: host
+                        .rp_regist_key
+                        .map(|byte| u8::from_ne_bytes(byte.to_ne_bytes())),
                     morning: host.rp_key,
                 }
             }
