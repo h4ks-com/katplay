@@ -25,8 +25,16 @@ protocol.
 `just chiaki` clones chiaki-ng at `CHIAKI_REF` into the data directory
 (`CHIAKI_PATH` overrides it) with the submodules libchiaki builds from, and
 makes the Python that nanopb's generator runs on. Every build recipe runs it
-first. `build.rs` reads the link line CMake gives a probe executable, so Rust
-links what CMake resolved and a new libchiaki dependency needs no change here.
+first, after `just ffmpeg` builds FFmpeg `FFMPEG_VERSION` as static libraries
+with only the decoders a console sends. `build.rs` reads the link line CMake
+gives a probe executable, so Rust links what CMake resolved and a new libchiaki
+dependency needs no change here. CMake looks only for static libraries, so the
+binary runs on a machine that has none of them installed.
+
+`just release patch` (or minor, major) bumps the version, tags it and pushes;
+the release workflow then attaches one archive per platform, which Homebrew
+and cargo-binstall install. Start the release workflow by hand to build the
+archives without publishing them.
 
 katui comes from crates.io. To work against a local katui checkout, add a
 `[patch.crates-io]` section to a `.cargo/config.toml` you keep untracked.

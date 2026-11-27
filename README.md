@@ -17,56 +17,34 @@ to connect to the console and decode the video and audio, and
 [katui](https://github.com/h4ks-com/katui) to draw the picture.
 
 ```console
-$ just run discover 3        # list the consoles that answer within 3 seconds
+$ katplay discover 3        # list the consoles that answer within 3 seconds
 192.168.1.20     PS5-123                  PS5  ready
 192.168.1.21     PS4-Den                  PS4  in rest
 ```
 
 ## Install
 
-katplay runs on macOS and Linux, and you build it from source. You need Rust
-1.90 or newer, which you can install with [rustup](https://rustup.rs), and
-[just](https://github.com/casey/just), the command runner that katplay uses for
-its build steps.
-
-On macOS, first install Xcode's command line tools with
-`xcode-select --install`. Then install the build tools and libraries with
-Homebrew:
+katplay runs on macOS 11 or newer and on Linux with glibc 2.35 or newer, on
+x86_64 and arm64. Install it with Homebrew:
 
 ```sh
-brew install just uv cmake ninja git openssl@3 json-c miniupnpc libevent opus nasm protobuf
+brew install h4ks-com/tap/katplay
 ```
 
 <details>
-<summary><b>Debian and Ubuntu</b></summary>
+<summary><b>cargo-binstall</b></summary>
 
 ```sh
-sudo apt install just build-essential curl xz-utils cmake ninja-build git pkg-config libclang-dev clang \
-  libssl-dev libjson-c-dev libminiupnpc-dev libevent-dev libopus-dev \
-  nasm libasound2-dev libudev-dev protobuf-compiler
+cargo binstall --git https://github.com/h4ks-com/katplay katplay
 ```
-
-Then install [uv](https://docs.astral.sh/uv/getting-started/installation/)
-with its installer. If your release has no `just` package, run
-`cargo install just`.
 
 </details>
 
-Then clone katplay and run it:
-
-```sh
-git clone https://github.com/h4ks-com/katplay
-cd katplay
-just run
-```
-
-The first run downloads chiaki-ng into `~/.local/share/katplay` and builds
-libchiaki from it, which takes a few minutes. After that, katplay starts right
-away.
+Then run `katplay`.
 
 ## First use
 
-`just run` opens the list of consoles on your network. Select a console with
+`katplay` opens the list of consoles on your network. Select a console with
 the arrow keys and press <kbd>Enter</kbd>.
 
 If you have not paired the console yet, katplay opens the registration form.
@@ -113,16 +91,58 @@ You can also run each step on its own, for example in a script or a shortcut.
 For `<console>`, use the name or the address that `discover` prints.
 
 ```sh
-just run discover 5          # list the consoles that answer within 5 seconds
-just run wake <console>      # wake a registered console from rest mode
-just run play <console>      # start playing a console right away
-just run register --host <address> --pin <code> --username <online id>   # pair a console
+katplay discover 5          # list the consoles that answer within 5 seconds
+katplay wake <console>      # wake a registered console from rest mode
+katplay play <console>      # start playing a console right away
+katplay register --host <address> --pin <code> --username <online id>   # pair a console
 ```
 
 To name the PSN account in `register`, you can use `--link <url>` with the
 address of the page PSN shows after you sign in, or `--account-id <id>` with
 the account id in base64, in place of `--username`. Add `--name <name>` to
 give the console a name, and `--ps4` to register a PS4.
+
+## Build from source
+
+To build katplay yourself, you need Rust 1.90 or newer, which you can install
+with [rustup](https://rustup.rs), and [just](https://github.com/casey/just), the
+command runner that katplay uses for its build steps.
+
+On macOS, first install Xcode's command line tools with
+`xcode-select --install`. Then install the build tools and libraries with
+Homebrew:
+
+```sh
+brew install just uv cmake ninja git openssl@3 json-c miniupnpc libevent opus nasm protobuf
+```
+
+<details>
+<summary><b>Debian and Ubuntu</b></summary>
+
+```sh
+sudo apt install just build-essential curl xz-utils cmake ninja-build git pkg-config libclang-dev clang \
+  libssl-dev libjson-c-dev libminiupnpc-dev libevent-dev libopus-dev \
+  nasm libasound2-dev libudev-dev protobuf-compiler
+```
+
+Then install [uv](https://docs.astral.sh/uv/getting-started/installation/)
+with its installer. If your release has no `just` package, run
+`cargo install just`.
+
+</details>
+
+Then clone katplay, build it and run it:
+
+```sh
+git clone https://github.com/h4ks-com/katplay
+cd katplay
+just run
+```
+
+The first run downloads chiaki-ng and FFmpeg into `~/.local/share/katplay` and
+builds them, which takes a few minutes. After that, katplay starts right away.
+To run one of the commands above, put it after `just run`, like
+`just run discover 5`.
 
 ## License
 
