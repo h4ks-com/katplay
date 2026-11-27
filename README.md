@@ -5,11 +5,11 @@ katplay is a PlayStation Remote Play client that streams your PS5 or PS4 into a 
 </p>
 
 <p align="center">
-<a href="#install">Install</a> · <a href="#first-use">First use</a> · <a href="#controls">Controls</a> · <a href="#status">Status</a>
+<a href="#install">Install</a> · <a href="#first-use">First use</a> · <a href="#controls">Controls</a>
 </p>
 
 katplay finds the consoles on your network, wakes them from rest and plays
-them with sound, using your keyboard or a game controller. The picture is real
+them with sound, from a game controller or the keyboard. The picture is real
 pixels in kitty, Ghostty, WezTerm and iTerm2, sixel in terminals that support
 it, and colored blocks everywhere else.
 [chiaki-ng](https://github.com/chiaki-ng/chiaki-ng)'s libchiaki handles the
@@ -42,7 +42,7 @@ brew install just uv cmake ninja git openssl@3 json-c miniupnpc libevent opus ff
 ```sh
 sudo apt install just cmake ninja-build git pkg-config libclang-dev clang \
   libssl-dev libjson-c-dev libminiupnpc-dev libevent-dev libopus-dev \
-  libavcodec-dev libavutil-dev libswscale-dev libasound2-dev protobuf-compiler
+  libavcodec-dev libavutil-dev libswscale-dev libasound2-dev libudev-dev protobuf-compiler
 ```
 
 Then install [uv](https://docs.astral.sh/uv/getting-started/installation/)
@@ -51,9 +51,11 @@ with its installer. On a release that has no `just` package, run
 
 </details>
 
-Then clone this repository and run this inside it:
+Then clone katplay and run it:
 
 ```sh
+git clone https://github.com/h4ks-com/katplay
+cd katplay
 just run
 ```
 
@@ -78,7 +80,13 @@ mode also wakes on its own when you start playing it.
 
 ## Controls
 
-While you play, the keyboard is the controller:
+Play with a game controller, the keyboard, or both at once. A controller's
+buttons work as they do on the console. Most systems keep the PS button for
+themselves, so hold Share and Options together to press PS. In the menus, move
+with the D-pad or the left stick, pick with the bottom face button and go back
+with the right one.
+
+On the keyboard:
 
 | Keys | Controller |
 | --- | --- |
@@ -90,11 +98,6 @@ While you play, the keyboard is the controller:
 | `r` `o` | L2, R2 |
 | `c` `n` | L3, R3 |
 | `v` `b` `p` `m` | Share, Options, PS, touchpad |
-
-A game controller works as well, and you can use it together with the keyboard.
-Most systems keep a controller's PS button for themselves, so hold Share and
-Options together to press PS. In the menus, you move with the D-pad or the
-left stick, pick with the bottom face button and go back with the right one.
 
 Press <kbd>Esc</kbd> to open the menu that leaves the session or puts the
 console to rest, and <kbd>Ctrl</kbd>+<kbd>C</kbd> to quit.
@@ -115,12 +118,6 @@ just run register --host <address> --pin <code> --username <online id>   # pair 
 `--account-id <id>` (the account id in base64) in place of `--username`,
 `--name <name>` to name the console, and `--ps4` for a PS4.
 
-## Status
-
-katplay is early. Finding consoles is tested on a real PS5. Waking,
-registering and playing are built and not yet tested against a console, so
-expect rough edges there.
-
 ## License
 
-AGPL-3.0-only, because katplay links libchiaki, which is AGPL-3.0-only too.
+AGPL-3.0-only, like libchiaki.

@@ -42,7 +42,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends
           cmake ninja-build git pkg-config libclang-dev clang
           libssl-dev libjson-c-dev libminiupnpc-dev libevent-dev libopus-dev
-          libavcodec-dev libavutil-dev libswscale-dev libasound2-dev protobuf-compiler
+          libavcodec-dev libavutil-dev libswscale-dev libasound2-dev libudev-dev protobuf-compiler
       - if: runner.os == 'macOS'
         run: brew install cmake ninja git miniupnpc libevent opus json-c ffmpeg protobuf openssl@3
       # the chiaki-ng checkout `just chiaki` makes

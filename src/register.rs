@@ -176,7 +176,7 @@ impl Register {
             .then(|| address.to_owned())
     }
 
-    /// Find the account by the online id (`true`) or by the sign-in link.
+    /// Find the account the way `by` names.
     pub(crate) fn look_by(&mut self, by: By) {
         self.by = by;
         self.found = None;

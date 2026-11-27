@@ -176,8 +176,9 @@ impl Registration {
             host: field("host")
                 .ok_or_else(|| credentials("has no host"))?
                 .to_owned(),
-            // A file without a kind comes from before PS4 support, when every console was a PS5.
-            kind: field("kind").and_then(Kind::from_name).unwrap_or(Kind::PS5),
+            kind: field("kind")
+                .and_then(Kind::from_name)
+                .ok_or_else(|| credentials("has no kind of ps5 or ps4"))?,
             regist_key: unhex(field("regist_key").ok_or_else(|| credentials("has no regist_key"))?)
                 .ok_or_else(|| credentials("has a regist_key that is not 16 bytes of hex"))?,
             morning: unhex(field("morning").ok_or_else(|| credentials("has no morning"))?)
@@ -378,10 +379,17 @@ mod tests {
         let error = Registration::parse("broken", "host=10.0.0.1\n")
             .unwrap_err()
             .to_string();
-        assert_eq!(error, "broken: has no regist_key");
-        let error = Registration::parse("broken", "host=10.0.0.1\nregist_key=zz\nmorning=00\n")
+        assert_eq!(error, "broken: has no kind of ps5 or ps4");
+        let error = Registration::parse("broken", "host=10.0.0.1\nkind=ps5\n")
             .unwrap_err()
             .to_string();
+        assert_eq!(error, "broken: has no regist_key");
+        let error = Registration::parse(
+            "broken",
+            "host=10.0.0.1\nkind=ps5\nregist_key=zz\nmorning=00\n",
+        )
+        .unwrap_err()
+        .to_string();
         assert_eq!(
             error,
             "broken: has a regist_key that is not 16 bytes of hex"
